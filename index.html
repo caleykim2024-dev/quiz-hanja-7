@@ -194,7 +194,7 @@ function dotsHtml(deck,clickable){
   const t=S.days[deck];
   return '<div class="dots">'+t.ids.map((id,i)=>{
     const r=t.res[id];
-    const cls=r&&r.tries>0?(r.everWrong?'ng':'ok'):'';
+    const cls=r&&r.tries>0?(isOk(t,id)?'ok':'ng'):'';
     const c=(clickable&&view==='quiz'&&i===cur)?' cur':'';
     return clickable
       ?`<button class="dot ${cls}${c}" onclick="go(${i})" aria-label="${i+1}번 문제">${i+1}</button>`
@@ -202,6 +202,10 @@ function dotsHtml(deck,clickable){
   }).join('')+'</div>';
 }
 function doneCount(deck){const t=S.days[deck];return t.ids.filter(id=>t.res[id]&&t.res[id].tries>0).length;}
+// 가장 최근에 푼 답이 맞았으면 '맞음' (틀렸다가 다시 풀어 맞혀도 맞은 것으로 센다)
+function isOk(t,id){const r=t.res[id];if(!r||!(r.tries>0))return false;
+  if(r.ok!==undefined)return r.ok;
+  return r.picked!=null?r.picked===QB[id].answer:!r.everWrong;}
 
 function render(){
   if(loadErr){$app.innerHTML=`<h1>문제를 불러오지 못했어요</h1><div class="err-box">${e(loadErr)}</div>`;return;}
@@ -271,15 +275,15 @@ function renderQuiz(){
 function renderResult(){
   const t=TD(),n=t.ids.length;
   const wrong=t.ids.filter(id=>t.res[id]&&t.res[id].everWrong);
-  const good=n-wrong.length;
+  const good=t.ids.filter(id=>isOk(t,id)).length;
   const label=id=>{const q=QB[id];return q.big?q.big+'  '+q.choices[q.answer]:q.question.slice(0,60)+(q.question.length>60?'…':'');};
   $app.innerHTML=`
     <div class="top"><button class="icon-btn" onclick="home()" aria-label="처음으로">←</button><span class="sync">${e(curDeck)}</span><span style="width:44px"></span></div>
     <h1>${wrong.length===0?'전부 한 번에 맞혔어요!':'오늘 학습 끝!'}</h1>
-    <p class="sub">처음 풀었을 때 맞힌 문제</p>
+    <p class="sub">맞힌 문제</p>
     <div class="big">${good}<small> / ${n}</small></div>
     ${dotsHtml(curDeck,false)}
-    ${wrong.length?`<h2>다음에 다시 나오는 문제</h2><ul class="wrong-list">${wrong.map(id=>`<li>${e(label(id))}</li>`).join('')}</ul>`:''}
+    ${wrong.length?`<h2>다음에 다시 나오는 문제</h2><ul class="wrong-list">${wrong.map(id=>`<li>${e(label(id))}${isOk(t,id)?' · 다시 풀어서 맞힘':''}</li>`).join('')}</ul>`:''}
     <div class="footer"><div class="row"><button class="btn" onclick="home()">처음으로</button></div></div>`;
   window.scrollTo(0,0);
 }
@@ -339,7 +343,7 @@ function pick(i){
   const t=TD(),id=t.ids[cur],q=QB[id];
   const r=t.res[id]||(t.res[id]={tries:0,everWrong:false,picked:null});
   if(r.picked!=null)return;
-  r.picked=i;r.tries++;
+  r.picked=i;r.tries++;r.ok=(i===q.answer);
   const st=S.stats[id]||(S.stats[id]={seen:0,wrong:0,last:''});
   if(r.tries===1){st.seen++;st.last=t.date;}
   if(i!==q.answer&&!r.everWrong){r.everWrong=true;st.wrong++;}
