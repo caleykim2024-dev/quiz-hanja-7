@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#F2F5FA">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="오늘의 한자">
-<title>오늘의 한자</title>
+<meta name="apple-mobile-web-app-title" content="오늘의 문제">
+<title>오늘의 문제</title>
+<script src="./config.js"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
 :root{
@@ -109,9 +110,13 @@ input[type=text],input[type=number],input[type=password],input[type=url]{width:1
 
 <script>
 /* ============ 상태 ============ */
-const LS_STATE='hanjaState.v1', LS_CFG='hanjaCfg.v1';
+const LS_STATE='quizState.v1', LS_CFG='quizCfg.v1';
+const LS_AUTH='quizAuth.v1';
 let Q=[], QB={}, DECKS=[], S=null, loadErr='';
-let cfg=JSON.parse(localStorage.getItem(LS_CFG)||'{}');
+const savedCfg=JSON.parse(localStorage.getItem(LS_CFG)||'{}');
+const publicConfig=window.APP_CONFIG||{};
+let cfg={url:publicConfig.SUPABASE_URL||'',key:publicConfig.SUPABASE_ANON_KEY||'',email:savedCfg.email||''};
+let authSession=JSON.parse(localStorage.getItem(LS_AUTH)||'null');
 let view='home', cur=0, curDeck='', syncStatus='', pushTimer=null, settingsMsg='';
 const $app=document.getElementById('app');
 
@@ -162,28 +167,81 @@ function ensureToday(){
   return rebuilt;
 }
 
-/* ============ 동기화 (Supabase, 선택) ============ */
-const syncOn=()=>cfg.url&&cfg.key&&cfg.code;
-const base=()=>cfg.url.replace(/\/+$/,'')+'/rest/v1/progress';
-const hdr=()=>({apikey:cfg.key,Authorization:'Bearer '+cfg.key,'Content-Type':'application/json'});
+/* ============ 동기화 (Supabase Auth + RLS) ============ */
+const configReady=()=>Boolean(cfg.url&&cfg.key&&!cfg.url.includes('YOUR_')&&!cfg.key.includes('YOUR_'));
+const syncOn=()=>Boolean(configReady()&&authSession&&authSession.access_token);
+const base=()=>cfg.url.replace(/\/+$/,'')+'/rest/v1/vocab_quiz_progress';
+const hdr=()=>({apikey:cfg.key,Authorization:'Bearer '+(authSession?.access_token||cfg.key),'Content-Type':'application/json'});
+function keepSession(data){
+  authSession={access_token:data.access_token,refresh_token:data.refresh_token,
+    expires_at:Date.now()+((data.expires_in||3600)*1000),user:data.user};
+  localStorage.setItem(LS_AUTH,JSON.stringify(authSession));
+}
+async function refreshSession(){
+  if(!authSession?.refresh_token||!cfg.url||!cfg.key)return false;
+  const r=await fetch(cfg.url.replace(/\/+$/,'')+'/auth/v1/token?grant_type=refresh_token',{
+    method:'POST',headers:{apikey:cfg.key,'Content-Type':'application/json'},
+    body:JSON.stringify({refresh_token:authSession.refresh_token})});
+  if(!r.ok){authSession=null;localStorage.removeItem(LS_AUTH);return false;}
+  keepSession(await r.json());return true;
+}
+async function ensureSession(){
+  if(!syncOn())return false;
+  if(authSession.expires_at>Date.now()+60000)return true;
+  return refreshSession();
+}
+function mergeStates(left,right){
+  const a=migrate(left),b=migrate(right),m=defaultState();
+  const newer=b.updatedAt>=a.updatedAt?b:a;
+  m.perDay=newer.perDay;m.updatedAt=Math.max(a.updatedAt,b.updatedAt);
+  m.stats={};
+  for(const id of new Set([...Object.keys(a.stats||{}),...Object.keys(b.stats||{})])){
+    const x=a.stats[id]||{},y=b.stats[id]||{};
+    m.stats[id]={seen:Math.max(x.seen||0,y.seen||0),wrong:Math.max(x.wrong||0,y.wrong||0),last:(x.last||'')>(y.last||'')?(x.last||''):(y.last||'')};
+  }
+  const queue=new Map();
+  for(const item of [...(a.queue||[]),...(b.queue||[])]){
+    if(!item||item.id==null)continue;
+    const key=String(item.id),old=queue.get(key);
+    if(!old||String(item.date||'')>String(old.date||''))queue.set(key,item);
+  }
+  m.queue=[...queue.values()];m.days={};
+  for(const deck of new Set([...Object.keys(a.days||{}),...Object.keys(b.days||{})])){
+    const x=a.days[deck],y=b.days[deck];
+    if(!x){m.days[deck]=y;continue;} if(!y){m.days[deck]=x;continue;}
+    if(x.date!==y.date){m.days[deck]=String(x.date)>String(y.date)?x:y;continue;}
+    const ids=[...new Set([...(x.ids||[]),...(y.ids||[])])],res={};
+    for(const id of ids){
+      const rx=x.res?.[id],ry=y.res?.[id];
+      if(!rx)res[id]=ry;else if(!ry)res[id]=rx;
+      else res[id]=(ry.changedAt||0)>(rx.changedAt||0)?ry:rx;
+    }
+    m.days[deck]={...x,...y,ids,wrongFrom:[...new Set([...(x.wrongFrom||[]),...(y.wrongFrom||[])])],res};
+  }
+  return m;
+}
 function setSync(s){syncStatus=s;const el=document.getElementById('sync');if(el){el.textContent=syncText();el.className='sync'+(s==='err'?' err':'');}}
-function syncText(){return !syncOn()?'이 기기에만 저장 중':syncStatus==='err'?'동기화 실패 (인터넷 확인)':syncStatus==='ok'?'동기화됨':'동기화 중…';}
+function syncText(){return !syncOn()?'Supabase 로그인 필요':syncStatus==='err'?'동기화 실패 (연결을 확인해 주세요)':syncStatus==='ok'?'모든 기기와 동기화됨':'동기화 중…';}
 async function pull(){
   if(!syncOn())return false;
   try{
-    const r=await fetch(base()+'?id=eq.'+encodeURIComponent(cfg.code)+'&select=data',{headers:hdr()});
+    await ensureSession();
+    const userId=authSession.user.id;
+    const r=await fetch(base()+'?user_id=eq.'+encodeURIComponent(userId)+'&select=data',{headers:hdr()});
     if(!r.ok)throw new Error(r.status);
     const rows=await r.json(); setSync('ok');
-    if(!rows[0]){push();return false;}
-    const d=rows[0].data;
-    if(d&&d.updatedAt>S.updatedAt){S=migrate(d);localStorage.setItem(LS_STATE,JSON.stringify(S));return true;}
-    return false;
+    // 로컬 상태와 서버 상태를 합쳐 양쪽 기록을 보존합니다.
+    const before=JSON.stringify(S),remote=rows[0]?.data||defaultState();
+    S=mergeStates(S,remote);localStorage.setItem(LS_STATE,JSON.stringify(S));
+    await push();
+    return before!==JSON.stringify(S);
   }catch(_){setSync('err');return false;}
 }
 async function push(){
   if(!syncOn())return;
   try{
-    const r=await fetch(base(),{method:'POST',headers:{...hdr(),Prefer:'resolution=merge-duplicates'},body:JSON.stringify({id:cfg.code,data:S})});
+    await ensureSession();
+    const r=await fetch(base(),{method:'POST',headers:{...hdr(),Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({user_id:authSession.user.id,data:S,updated_at:new Date().toISOString()})});
     if(!r.ok)throw new Error(r.status); setSync('ok');
   }catch(_){setSync('err');}
 }
@@ -305,14 +363,18 @@ function renderSettings(){
 
     <h2>여러 기기에서 기록 같이 쓰기</h2>
     <div class="panel">
-      <p class="help" style="margin-top:0">Supabase 정보를 넣으면 폰·노트북·패드의 기록이 합쳐져요. 세 기기 모두 같은 값을 입력하세요.</p>
-      <label for="cUrl">Project URL</label><input type="url" id="cUrl" value="${e(cfg.url||'')}" placeholder="https://xxxx.supabase.co">
-      <label for="cKey">anon public key</label><input type="password" id="cKey" value="${e(cfg.key||'')}">
-      <label for="cCode">동기화 코드 (아이 이름 등 아무거나)</label><input type="text" id="cCode" value="${e(cfg.code||'')}" placeholder="예: minsu">
+      <p class="help" style="margin-top:0">한 번 계정을 연결하면 이 기기의 기존 기록을 Supabase 기록과 합쳐 저장해요. 다른 기기에서도 같은 계정으로 로그인하세요.</p>
+      <p class="help">Supabase 주소와 공개 키는 <b>config.js</b>에서 읽습니다. ${configReady()?'공통 설정이 적용되어 있어요.':'config.js에 Supabase URL과 anon public key를 먼저 입력해 주세요.'}</p>
+      <label for="cEmail">계정 이메일</label><input type="text" id="cEmail" value="${e(cfg.email||'')}" placeholder="이메일 주소" autocomplete="username">
+      <label for="cPassword">비밀번호</label><input type="password" id="cPassword" placeholder="Supabase 계정 비밀번호" autocomplete="current-password">
       <div style="display:flex;gap:10px;margin-top:14px;align-items:center">
-        <button class="btn small" onclick="saveSync()">연결</button>
+        <button class="btn small" onclick="saveSync()">로그인 및 동기화</button>
+        <button class="btn small ghost" onclick="createSyncAccount()">계정 만들기</button>
         <span class="sync" id="sync">${syncText()}</span>
       </div>
+      ${authSession?.user?.email?`<p class="help">연결 계정: ${e(authSession.user.email)} <button class="btn small ghost" onclick="signOut()">로그아웃</button></p>`:''}
+      <div class="msg" id="syncMsg">${e(settingsMsg)}</div>
+      <p class="help">로그인하면 이 기기의 기존 풀이 기록과 Supabase 기록을 합쳐요. 계정 이메일과 비밀번호는 기기 간 기록 공유용으로 사용합니다.</p>
     </div>
 
     <h2>엑셀 → 문제 파일 변환</h2>
@@ -343,7 +405,7 @@ function pick(i){
   const t=TD(),id=t.ids[cur],q=QB[id];
   const r=t.res[id]||(t.res[id]={tries:0,everWrong:false,picked:null});
   if(r.picked!=null)return;
-  r.picked=i;r.tries++;r.ok=(i===q.answer);
+  r.picked=i;r.tries++;r.ok=(i===q.answer);r.changedAt=Date.now();
   const st=S.stats[id]||(S.stats[id]={seen:0,wrong:0,last:''});
   if(r.tries===1){st.seen++;st.last=t.date;}
   if(i!==q.answer&&!r.everWrong){r.everWrong=true;st.wrong++;}
@@ -368,15 +430,38 @@ function rebuildToday(){
   save();view='home';render();
 }
 async function saveSync(){
-  cfg={url:document.getElementById('cUrl').value.trim(),key:document.getElementById('cKey').value.trim(),code:document.getElementById('cCode').value.trim()};
-  localStorage.setItem(LS_CFG,JSON.stringify(cfg));
+  const msg=document.getElementById('syncMsg');
+  cfg.email=document.getElementById('cEmail').value.trim();
+  localStorage.setItem(LS_CFG,JSON.stringify({email:cfg.email}));
   setSync('');
-  if(!syncOn()){setSync('');return;}
-  const changed=await pull();
-  if(!changed)await push();
-  if(changed){ensureToday();}
+  const password=document.getElementById('cPassword').value;
+  if(!configReady()||!cfg.email||!password){if(msg)msg.textContent='config.js 설정과 이메일, 비밀번호를 확인해 주세요.';return;}
+  try{
+    const r=await fetch(cfg.url.replace(/\/+$/,'')+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:cfg.key,'Content-Type':'application/json'},body:JSON.stringify({email:cfg.email,password})});
+    const body=await r.json();if(!r.ok)throw new Error(body.msg||body.message||body.error_description||'로그인에 실패했어요.');
+    keepSession(body);if(msg)msg.textContent='이 기기의 기록을 서버 기록과 합치는 중…';
+    await pull();ensureToday();
+    if(msg)msg.textContent=syncStatus==='err'?'로그인은 됐지만 동기화에 실패했어요. Supabase SQL 설정을 확인해 주세요.':'기존 기기 기록을 포함해 동기화했어요.';
+  }catch(err){authSession=null;localStorage.removeItem(LS_AUTH);setSync('err');if(msg)msg.textContent=err.message;}
+  settingsMsg=msg?.textContent||'';
   render();
 }
+async function createSyncAccount(){
+  const msg=document.getElementById('syncMsg');
+  cfg.email=document.getElementById('cEmail').value.trim();
+  localStorage.setItem(LS_CFG,JSON.stringify({email:cfg.email}));
+  const password=document.getElementById('cPassword').value;
+  if(!configReady()||!cfg.email||!password){if(msg)msg.textContent='config.js 설정과 이메일, 비밀번호를 확인해 주세요.';return;}
+  try{
+    const r=await fetch(cfg.url.replace(/\/+$/,'')+'/auth/v1/signup',{method:'POST',headers:{apikey:cfg.key,'Content-Type':'application/json'},body:JSON.stringify({email:cfg.email,password})});
+    const body=await r.json();if(!r.ok)throw new Error(body.msg||body.message||body.error_description||'계정을 만들지 못했어요.');
+    if(body.access_token){keepSession(body);await pull();if(msg)msg.textContent='계정을 만들고 이 기기의 기록을 동기화했어요.';}
+    else if(msg)msg.textContent='계정을 만들었어요. 이메일 인증을 마친 뒤 로그인 및 동기화를 눌러 주세요.';
+  }catch(err){if(msg)msg.textContent=err.message;}
+  settingsMsg=msg?.textContent||'';
+  render();
+}
+function signOut(){authSession=null;localStorage.removeItem(LS_AUTH);setSync('');settingsMsg='로그아웃했어요. 이 기기 기록은 그대로 보관됩니다.';render();}
 function resetAll(){
   if(!confirm('모든 풀이 기록이 삭제돼요. 정말 지울까요?'))return;
   const keep=S.perDay;S=defaultState();S.perDay=keep;ensureToday();save();view='home';render();
