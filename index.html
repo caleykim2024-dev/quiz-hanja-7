@@ -75,11 +75,22 @@ h2{font-size:18px;margin:28px 0 10px}
 .choice:disabled{cursor:default}
 .choice:disabled:not(.right):not(.wrong){opacity:.55}
 
-.verdict{margin-top:18px;border-radius:16px;padding:16px 18px}
-.verdict.ok{background:var(--ok-bg)} .verdict.ng{background:var(--ng-bg)}
-.verdict h3{margin:0 0 6px;font-size:18px}
-.verdict.ok h3{color:var(--ok)} .verdict.ng h3{color:var(--ng)}
-.verdict p{margin:0;white-space:pre-wrap;word-break:keep-all}
+.quiz-card{display:grid;margin-top:14px;transform-style:preserve-3d}
+.quiz-card.answered{transform:rotateY(180deg)}
+.quiz-face{grid-area:1/1;min-width:0;padding:18px;background:var(--card);border:1px solid var(--line);border-radius:18px;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.quiz-back{transform:rotateY(180deg)}
+.quiz-back h3{margin:0 0 14px;font-size:23px}
+.quiz-back.ok h3{color:var(--ok)} .quiz-back.ng h3{color:var(--ng)}
+.result-question{margin:0 0 16px;color:var(--muted);white-space:pre-wrap;word-break:keep-all}
+.result-question strong{color:var(--ink);font-size:24px;margin-right:8px}
+.result-question .qimg{max-height:180px;object-fit:contain;margin:10px 0 0}
+.answer-row{padding:12px 14px;border-radius:12px;margin-top:10px;white-space:pre-wrap;word-break:keep-all}
+.answer-row span{display:block;font-size:13px;font-weight:700;margin-bottom:2px}
+.answer-row.ok{background:var(--ok-bg)} .answer-row.ng{background:var(--ng-bg)}
+.explanation{margin-top:18px;white-space:pre-wrap;word-break:keep-all}
+.explanation b{display:block;margin-bottom:4px}
+.explanation p{margin:0}
 
 .footer{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top,var(--bg) 70%,transparent);
   padding:20px 16px calc(14px + env(safe-area-inset-bottom))}
@@ -102,7 +113,9 @@ input[type=text],input[type=number],input[type=password],input[type=url]{width:1
 .err-box{background:var(--ng-bg);border-radius:14px;padding:16px;color:#7A1B20}
 @media (prefers-reduced-motion:no-preference){
   .choice,.btn{transition:border-color .12s,background .12s,filter .12s}
+  .quiz-card.flipping{animation:card-flip .5s ease-in-out both}
 }
+@keyframes card-flip{from{transform:rotateY(0)}to{transform:rotateY(180deg)}}
 </style>
 </head>
 <body>
@@ -117,7 +130,7 @@ const savedCfg=JSON.parse(localStorage.getItem(LS_CFG)||'{}');
 const publicConfig=window.APP_CONFIG||{};
 let cfg={url:publicConfig.SUPABASE_URL||'',key:publicConfig.SUPABASE_ANON_KEY||'',email:savedCfg.email||''};
 let authSession=JSON.parse(localStorage.getItem(LS_AUTH)||'null');
-let view='home', cur=0, curDeck='', syncStatus='', pushTimer=null, settingsMsg='';
+let view='home', cur=0, curDeck='', syncStatus='', pushTimer=null, settingsMsg='', flipJustAnswered=false;
 const $app=document.getElementById('app');
 
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -306,14 +319,16 @@ function renderQuiz(){
   if(!q){view='home';return render();}
   const r=t.res[id]||{},answered=r.picked!=null,ok=answered&&r.picked===q.answer;
   const isReview=t.wrongFrom.includes(id);
-  const ch=q.choices.map((c,i)=>{
-    let cls='';
-    if(answered){if(i===q.answer)cls='right';else if(i===r.picked)cls='wrong';}
-    return `<button class="choice ${cls}" ${answered?'disabled':''} onclick="pick(${i})"><span class="n">${i+1}</span><span class="t">${e(c)}</span></button>`;
-  }).join('');
-  const verdict=answered?`<div class="verdict ${ok?'ok':'ng'}">
+  const ch=q.choices.map((c,i)=>`<button class="choice" ${answered?'disabled':''} onclick="pick(${i})"><span class="n">${i+1}</span><span class="t">${e(c)}</span></button>`).join('');
+  const back=answered?`<div class="quiz-face quiz-back ${ok?'ok':'ng'}" role="status">
       <h3>${ok?'정답이에요!':'아쉬워요. 정답은 '+(q.answer+1)+'번'}</h3>
-      <p>${e(q.explanation||'')}</p></div>`:'';
+      <div class="result-question">${q.big?`<strong>${e(q.big)}</strong>`:''}${e(q.question)}${q.image?`<img class="qimg" src="${e(q.image)}" alt="">`:''}</div>
+      <div class="answer-row ${ok?'ok':'ng'}"><span>내가 고른 답 · ${r.picked+1}번</span>${e(q.choices[r.picked])}</div>
+      ${ok?'':`<div class="answer-row ok"><span>정답 · ${q.answer+1}번</span>${e(q.choices[q.answer])}</div>`}
+      ${q.explanation?`<div class="explanation"><b>풀이</b><p>${e(q.explanation)}</p></div>`:''}
+    </div>`:'';
+  const flipping=answered&&flipJustAnswered;
+  flipJustAnswered=false;
   const last=cur===t.ids.length-1;
   const footer=answered?`<div class="footer"><div class="row">
       <button class="btn ghost" onclick="retry()">다시 풀기</button>
@@ -321,13 +336,18 @@ function renderQuiz(){
   $app.innerHTML=`
     <div class="top"><button class="icon-btn" onclick="home()" aria-label="처음으로">←</button><span class="sync">${e(curDeck)} · ${cur+1} / ${t.ids.length}</span><span style="width:44px"></span></div>
     ${dotsHtml(curDeck,true)}
-    <div class="qhead">${isReview?'<span class="tag">복습</span>':''}</div>
-    ${q.big?`<div class="bighan" lang="ko">${e(q.big)}</div>`:''}
-    <div class="qtext">${e(q.question)}</div>
-    ${q.image?`<img class="qimg" src="${e(q.image)}" alt="">`:''}
-    <div class="choices">${ch}</div>
-    ${verdict}${footer}`;
-  window.scrollTo(0,0);
+    <div class="quiz-card ${answered?'answered':''} ${flipping?'flipping':''}">
+      <div class="quiz-face quiz-front" ${answered?'aria-hidden="true"':''}>
+        <div class="qhead">${isReview?'<span class="tag">복습</span>':''}</div>
+        ${q.big?`<div class="bighan" lang="ko">${e(q.big)}</div>`:''}
+        <div class="qtext">${e(q.question)}</div>
+        ${q.image?`<img class="qimg" src="${e(q.image)}" alt="">`:''}
+        <div class="choices">${ch}</div>
+      </div>
+      ${back}
+    </div>${footer}`;
+  if(answered)document.querySelector('.quiz-card').scrollIntoView({block:'start'});
+  else window.scrollTo(0,0);
 }
 
 function renderResult(){
@@ -412,7 +432,7 @@ function pick(i){
   // 틀린 적이 있으면 (다시 풀어 맞혀도) 다음 출제 대상, 한 번도 안 틀렸으면 대기열에서 제거
   S.queue=S.queue.filter(x=>x.id!==id);
   if(r.everWrong)S.queue.push({id,date:t.date});
-  save();render();
+  save();flipJustAnswered=true;render();
 }
 function retry(){const t=TD(),r=t.res[t.ids[cur]];if(r){r.picked=null;save();render();}}
 function next(){
