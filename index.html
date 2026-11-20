@@ -3,103 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#F2F5FA">
+<meta name="theme-color" content="#F2F5FA">/}|\
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="오늘의 문제">
 <title>오늘의 문제</title>
 <script src="./config.js"></script>
-<script src="./quiz-card.js"></script>
+<script>
+const sharedQuizBase=(location.hostname==='127.0.0.1'||location.hostname==='localhost')
+  ?'http://127.0.0.1:8002'
+  :'https://caleykim2024-dev.github.io/hanja-8';
+document.write('<link rel="stylesheet" href="'+sharedQuizBase+'/quiz.css">');
+document.write('<script src="'+sharedQuizBase+'/quiz-card.js"><\/script>');
+</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<style>
-:root{
-  --bg:#F2F5FA; --card:#fff; --ink:#141B2D; --muted:#5B6579; --line:#D5DCE8;
-  --accent:#2D55E0; --accent-ink:#fff;
-  --ok:#14915F; --ok-bg:#E3F5EC; --ng:#D7373F; --ng-bg:#FDE9EA;
-  --marker:#FFD84D;
-}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--bg);color:var(--ink);
-  font-family:"Pretendard Variable",Pretendard,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
-  font-size:17px;line-height:1.55}
-button{font:inherit;color:inherit;cursor:pointer}
-#app{max-width:560px;margin:0 auto;padding:calc(16px + env(safe-area-inset-top)) 16px calc(110px + env(safe-area-inset-bottom))}
-:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 
-.top{display:flex;align-items:center;justify-content:space-between;min-height:44px;margin-bottom:8px}
-.icon-btn{border:0;background:transparent;width:44px;height:44px;border-radius:12px;font-size:22px;color:var(--muted)}
-.icon-btn:active{background:#E4E9F3}
-h1{font-size:28px;line-height:1.25;margin:8px 0 4px;letter-spacing:-.02em}
-h2{font-size:18px;margin:28px 0 10px}
-.sub{color:var(--muted);margin:0 0 20px}
-
-/* progress stamps */
-.dots{display:grid;grid-template-columns:repeat(auto-fill,minmax(26px,1fr));gap:6px}
-.dot{width:100%;max-width:34px;aspect-ratio:1;border-radius:50%;border:2px solid var(--line);background:#fff;
-  font-size:12px;font-weight:700;color:var(--muted);display:grid;place-items:center;padding:0}
-.dot.ok{background:var(--ok);border-color:var(--ok);color:#fff}
-.dot.ng{background:var(--ng);border-color:var(--ng);color:#fff}
-.dot.cur{box-shadow:0 0 0 3px var(--marker)}
-
-.panel{background:var(--card);border-radius:18px;padding:18px;border:1px solid var(--line)}
-.stats{display:flex;gap:10px;margin-top:14px}
-.stat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
-.stat b{display:block;font-size:22px;letter-spacing:-.02em}
-.stat span{font-size:14px;color:var(--muted)}
-
-.btn{border:0;border-radius:14px;padding:15px 20px;font-weight:700;font-size:17px;background:var(--accent);color:var(--accent-ink);width:100%}
-.btn:active{filter:brightness(.92)}
-.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
-.btn.danger{background:#fff;color:var(--ng);border:1px solid var(--ng-bg)}
-.btn.small{width:auto;padding:10px 16px;font-size:15px}
-.start{margin-top:22px}
-.deckhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:12px}
-.deckhead b{font-size:20px;letter-spacing:-.02em}
-.deckhead span{font-size:14px;color:var(--muted)}
-.deckmeta{font-size:14px;color:var(--muted);margin:12px 0 0}
-.bighan{font-family:"Noto Serif KR","Noto Serif CJK KR","Songti SC","Batang",serif;font-size:96px;line-height:1.15;text-align:center;margin:6px 0 16px}
-
-/* quiz */
-.qhead{display:flex;align-items:center;gap:8px;margin:14px 0 6px}
-.tag{font-size:13px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--marker);color:#3B3000}
-.qtext{font-size:19px;font-weight:600;line-height:1.6;white-space:pre-wrap;margin:6px 0 16px;word-break:keep-all}
-.qimg{max-width:100%;border-radius:12px;margin:0 0 16px;display:block}
-.choices{display:grid;gap:10px}
-.choice{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;min-height:54px;
-  padding:13px 14px;border-radius:14px;border:2px solid var(--line);background:#fff}
-.choice .n{flex:none;width:26px;height:26px;border-radius:50%;background:#EEF2F9;font-size:14px;font-weight:700;display:grid;place-items:center;margin-top:1px}
-.choice .t{white-space:pre-wrap;word-break:keep-all}
-.choice:not(:disabled):active{border-color:var(--accent)}
-.choice.right{border-color:var(--ok);background:var(--ok-bg)}
-.choice.right .n{background:var(--ok);color:#fff}
-.choice.wrong{border-color:var(--ng);background:var(--ng-bg)}
-.choice.wrong .n{background:var(--ng);color:#fff}
-.choice:disabled{cursor:default}
-.choice:disabled:not(.right):not(.wrong){opacity:.55}
-
-
-.footer{position:fixed;left:0;right:0;bottom:0;background:linear-gradient(to top,var(--bg) 70%,transparent);
-  padding:20px 16px calc(14px + env(safe-area-inset-bottom))}
-.footer .row{max-width:560px;margin:0 auto;display:flex;gap:10px}
-.footer .btn.ghost{width:40%}
-
-/* result */
-.big{font-size:56px;font-weight:800;letter-spacing:-.04em;line-height:1.1;margin:6px 0}
-.big small{font-size:22px;font-weight:600;color:var(--muted);letter-spacing:0}
-.wrong-list{list-style:none;padding:0;margin:0;display:grid;gap:8px}
-.wrong-list li{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:15px}
-
-/* settings */
-label{display:block;font-weight:600;font-size:15px;margin:14px 0 6px}
-input[type=text],input[type=number],input[type=password],input[type=url]{width:100%;font:inherit;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff}
-.help{font-size:14px;color:var(--muted);margin:6px 0 0}
-.msg{font-size:15px;margin-top:10px;white-space:pre-wrap}
-.sync{font-size:13px;color:var(--muted)}
-.sync.err{color:var(--ng)}
-.err-box{background:var(--ng-bg);border-radius:14px;padding:16px;color:#7A1B20}
-@media (prefers-reduced-motion:no-preference){
-  .choice,.btn{transition:border-color .12s,background .12s,filter .12s}
-}
-</style>
 </head>
 <body>
 <div id="app"></div>
@@ -113,7 +30,7 @@ const savedCfg=JSON.parse(localStorage.getItem(LS_CFG)||'{}');
 const publicConfig=window.APP_CONFIG||{};
 let cfg={url:publicConfig.SUPABASE_URL||'',key:publicConfig.SUPABASE_ANON_KEY||'',email:savedCfg.email||''};
 let authSession=JSON.parse(localStorage.getItem(LS_AUTH)||'null');
-let view='home', cur=0, curDeck='', syncStatus='', pushTimer=null, settingsMsg='', flipJustAnswered=false;
+let view='home', cur=0, curDeck='', quizMode='today', syncStatus='', pushTimer=null, settingsMsg='', flipJustAnswered=false;
 const $app=document.getElementById('app');
 
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -127,37 +44,20 @@ function migrate(raw){
 }
 function loadLocal(){try{return migrate(JSON.parse(localStorage.getItem(LS_STATE)||'{}'));}catch(_){return defaultState();}}
 function save(){S.updatedAt=Date.now();localStorage.setItem(LS_STATE,JSON.stringify(S));schedulePush();}
-function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 const TD=()=>S.days[curDeck];
 
 /* ============ 오늘 문제 뽑기 (분류별로 따로) ============ */
 function buildToday(deck){
-  const t=todayStr(), N=Math.max(1,S.perDay|0||10);
-  const inDeck=id=>QB[id]&&QB[id].deck===deck;
-  const ids=[], wrongFrom=[];
-  // 1) 이전 날 틀린 문제 먼저 (오래된 순)
-  const q=S.queue.filter(x=>x.date<t&&inDeck(x.id)).sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:0);
-  for(const x of q){ if(ids.length>=N)break; if(!ids.includes(x.id)){ids.push(x.id);wrongFrom.push(x.id);} }
-  // 2) 남는 자리: 푼 횟수가 적은 순 → 오래전에 푼 순 (같으면 무작위)
-  if(ids.length<N){
-    const rest=shuffle(Q.filter(x=>x.deck===deck).map(x=>x.id).filter(id=>!ids.includes(id)));
-    rest.sort((a,b)=>{
-      const sa=S.stats[a]||{seen:0,last:''}, sb=S.stats[b]||{seen:0,last:''};
-      if(sa.seen!==sb.seen)return sa.seen-sb.seen;
-      return sa.last<sb.last?-1:sa.last>sb.last?1:0;
-    });
-    for(const id of rest){ if(ids.length>=N)break; ids.push(id); }
-  }
-  return {date:t,ids:shuffle(ids),wrongFrom,res:{}};
+  return QuizCard.buildToday(deck,todayStr(),10,Q,QB,S.stats,S.queue);
 }
-// 날짜가 바뀐 분류는 새로 뽑고, 하나라도 새로 뽑았으면 true
+
 function ensureToday(){
   if(!Q.length)return false;
   let rebuilt=false;
   for(const d of DECKS){
-    const t=S.days[d];
-    if(!t||t.date!==todayStr()){S.days[d]=buildToday(d);rebuilt=true;}
-    else t.ids=t.ids.filter(id=>QB[id]);
+    const old=S.days[d];
+    const current=QuizCard.ensureSections(old,d,todayStr(),10,Q,QB,S.stats,S.queue);
+    if(JSON.stringify(old)!==JSON.stringify(current)){S.days[d]=current;rebuilt=true;}
   }
   if(rebuilt)save();
   return rebuilt;
@@ -195,13 +95,7 @@ function mergeStates(left,right){
     const x=a.stats[id]||{},y=b.stats[id]||{};
     m.stats[id]={seen:Math.max(x.seen||0,y.seen||0),wrong:Math.max(x.wrong||0,y.wrong||0),last:(x.last||'')>(y.last||'')?(x.last||''):(y.last||'')};
   }
-  const queue=new Map();
-  for(const item of [...(a.queue||[]),...(b.queue||[])]){
-    if(!item||item.id==null)continue;
-    const key=String(item.id),old=queue.get(key);
-    if(!old||String(item.date||'')>String(old.date||''))queue.set(key,item);
-  }
-  m.queue=[...queue.values()];m.days={};
+  m.queue=QuizCard.mergeQueue(a.queue,b.queue);m.days={};
   for(const deck of new Set([...Object.keys(a.days||{}),...Object.keys(b.days||{})])){
     const x=a.days[deck],y=b.days[deck];
     if(!x){m.days[deck]=y;continue;} if(!y){m.days[deck]=x;continue;}
@@ -212,7 +106,10 @@ function mergeStates(left,right){
       if(!rx)res[id]=ry;else if(!ry)res[id]=rx;
       else res[id]=(ry.changedAt||0)>(rx.changedAt||0)?ry:rx;
     }
-    m.days[deck]={...x,...y,ids,wrongFrom:[...new Set([...(x.wrongFrom||[]),...(y.wrongFrom||[])])],res};
+    const reviewIds=[...new Set([...(x.reviewIds||x.wrongFrom||[]),...(y.reviewIds||y.wrongFrom||[])])];
+    const todayIds=[...new Set([...(x.todayIds||x.ids?.filter(id=>!(x.wrongFrom||[]).includes(id))||[]),
+      ...(y.todayIds||y.ids?.filter(id=>!(y.wrongFrom||[]).includes(id))||[])])];
+    m.days[deck]={...x,...y,ids,reviewIds,todayIds,wrongFrom:reviewIds,res};
   }
   return m;
 }
@@ -244,18 +141,20 @@ async function push(){
 function schedulePush(){if(!syncOn())return;clearTimeout(pushTimer);pushTimer=setTimeout(push,700);}
 
 /* ============ 화면 ============ */
-function dotsHtml(deck,clickable){
+const sectionIds=(t,mode=quizMode)=>t?.[mode==='review'?'reviewIds':'todayIds']||[];
+const modeTitle=mode=>mode==='review'?'복습':'오늘의 풀이';
+function dotsHtml(deck,mode,clickable){
   const t=S.days[deck];
-  return '<div class="dots">'+t.ids.map((id,i)=>{
+  return '<div class="dots">'+sectionIds(t,mode).map((id,i)=>{
     const r=t.res[id];
     const cls=r&&r.tries>0?(isOk(t,id)?'ok':'ng'):'';
-    const c=(clickable&&view==='quiz'&&i===cur)?' cur':'';
+    const c=(clickable&&view==='quiz'&&mode===quizMode&&i===cur)?' cur':'';
     return clickable
       ?`<button class="dot ${cls}${c}" onclick="go(${i})" aria-label="${i+1}번 문제">${i+1}</button>`
       :`<span class="dot ${cls}">${i+1}</span>`;
   }).join('')+'</div>';
 }
-function doneCount(deck){const t=S.days[deck];return t.ids.filter(id=>t.res[id]&&t.res[id].tries>0).length;}
+function doneCount(deck,mode){const t=S.days[deck];return sectionIds(t,mode).filter(id=>t.res[id]&&t.res[id].tries>0).length;}
 // 가장 최근에 푼 답이 맞았으면 '맞음' (틀렸다가 다시 풀어 맞혀도 맞은 것으로 센다)
 function isOk(t,id){const r=t.res[id];if(!r||!(r.tries>0))return false;
   if(r.ok!==undefined)return r.ok;
@@ -275,59 +174,62 @@ function render(){
 
 function renderHome(){
   const d=new Date().toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'});
-  const panels=DECKS.map((dk,i)=>{
-    const t=S.days[dk],n=t.ids.length,done=doneCount(dk);
+  const cards=mode=>DECKS.map((dk,i)=>{
+    const t=S.days[dk],n=sectionIds(t,mode).length,done=doneCount(dk,mode);
     const all=Q.filter(q=>q.deck===dk);
     const seen=all.filter(q=>(S.stats[q.id]||{}).seen>0).length;
-    const pending=S.queue.filter(x=>QB[x.id]&&QB[x.id].deck===dk).length;
+    const pending=S.queue.filter(x=>x.stage!=='done'&&QB[x.id]&&QB[x.id].deck===dk).length;
+    const nextReview=S.queue.filter(x=>x.stage!=='done'&&QB[x.id]?.deck===dk&&QuizCard.queueDue(x)>todayStr()).map(QuizCard.queueDue).sort()[0];
     const label=done===0?'시작하기':done<n?'이어서 풀기':'결과 보기';
-    return `<div class="panel" style="margin-top:14px">
-      <div class="deckhead"><b>${e(dk)}</b><span>오늘 ${n}문제${t.wrongFrom.length?` · 복습 ${t.wrongFrom.length}개`:''}</span></div>
-      ${dotsHtml(dk,false)}
-      <p class="deckmeta">풀어본 문제 ${seen}/${all.length} · 다시 나올 오답 ${pending}개</p>
-      <button class="btn start" style="margin-top:14px" onclick="start(${i})">${label}</button>
+    return `<div class="panel">
+      <div class="deckhead"><b>${e(dk)}</b><span>${n}문제 · 완료 ${done}개</span></div>
+      ${n?dotsHtml(dk,mode,false):`<p class="empty-review">${mode==='review'?'오늘 복습할 문제가 없어요.':'오늘 풀 새 문제가 없어요.'}</p>`}
+      <p class="deckmeta">${mode==='review'?`다시 나올 오답 ${pending}개${!n&&nextReview?` · 다음 복습 ${nextReview}`:''}`:`풀어본 문제 ${seen}/${all.length} · 새 문제 ${n}개`}</p>
+      ${n?`<button class="btn start" onclick="start(${i},'${mode}')">${label}</button>`:''}
     </div>`;
   }).join('');
   $app.innerHTML=`
     <div class="top"><span class="sync" id="sync">${syncText()}</span><button class="icon-btn" onclick="openSettings()" aria-label="설정">⚙</button></div>
     <h1>${e(d)}</h1>
-    <p class="sub">${DECKS.length>1?'풀고 싶은 문제를 골라 주세요.':'오늘 풀 문제예요.'}</p>
-    ${panels}`;
+    <p class="sub">복습과 오늘의 풀이를 따로 진행해요.</p>
+    <section class="home-section"><h2>복습</h2>${cards('review')}</section>
+    <section class="home-section"><h2>오늘의 풀이</h2>${cards('today')}</section>`;
 }
 
 function renderQuiz(){
   const t=TD();
   if(!t){view='home';return render();}
-  const id=t.ids[cur],q=QB[id];
+  const ids=sectionIds(t),id=ids[cur],q=QB[id];
   if(!q){view='home';return render();}
   const r=t.res[id]||{},answered=r.picked!=null;
-  const isReview=t.wrongFrom.includes(id);
+  const isReview=quizMode==='review';
   const flipping=answered&&flipJustAnswered;
   flipJustAnswered=false;
-  const last=cur===t.ids.length-1;
+  const last=cur===ids.length-1;
   const footer=answered?`<div class="footer"><div class="row">
       <button class="btn ghost" onclick="retry()">다시 풀기</button>
       <button class="btn" onclick="next()">${last?'결과 보기':'다음 문제'}</button></div></div>`:'';
   $app.innerHTML=`
-    <div class="top"><button class="icon-btn" onclick="home()" aria-label="처음으로">←</button><span class="sync">${e(curDeck)} · ${cur+1} / ${t.ids.length}</span><span style="width:44px"></span></div>
-    ${dotsHtml(curDeck,true)}
+    <div class="top"><button class="icon-btn" onclick="home()" aria-label="처음으로">←</button><span class="sync">${e(curDeck)} · ${cur+1} / ${ids.length}</span><span style="width:44px"></span></div>
+    <span class="mode-chip">${modeTitle(quizMode)}</span>
+    ${dotsHtml(curDeck,quizMode,true)}
     ${QuizCard.render(q,r.picked,isReview,flipping,e)}${footer}`;
   QuizCard.focus(answered);
 }
 
 function renderResult(){
-  const t=TD(),n=t.ids.length;
-  const wrong=t.ids.filter(id=>t.res[id]&&t.res[id].everWrong);
-  const good=t.ids.filter(id=>isOk(t,id)).length;
+  const t=TD(),ids=sectionIds(t),n=ids.length;
+  const wrong=ids.filter(id=>t.res[id]&&t.res[id].everWrong);
+  const good=ids.filter(id=>isOk(t,id)).length;
   const label=id=>{const q=QB[id];return q.big?q.big+'  '+q.choices[q.answer]:q.question.slice(0,60)+(q.question.length>60?'…':'');};
   $app.innerHTML=`
-    <div class="top"><button class="icon-btn" onclick="home()" aria-label="처음으로">←</button><span class="sync">${e(curDeck)}</span><span style="width:44px"></span></div>
-    <h1>${wrong.length===0?'전부 한 번에 맞혔어요!':'오늘 학습 끝!'}</h1>
+    <div class="top"><button class="icon-btn" onclick="home()" aria-label="처음으로">←</button><span class="sync">${e(curDeck)} · ${modeTitle(quizMode)}</span><span style="width:44px"></span></div>
+    <h1>${modeTitle(quizMode)} 완료!</h1>
     <p class="sub">맞힌 문제</p>
     <div class="big">${good}<small> / ${n}</small></div>
-    ${dotsHtml(curDeck,false)}
+    ${dotsHtml(curDeck,quizMode,false)}
     ${wrong.length?`<h2>다음에 다시 나오는 문제</h2><ul class="wrong-list">${wrong.map(id=>`<li>${e(label(id))}${isOk(t,id)?' · 다시 풀어서 맞힘':''}</li>`).join('')}</ul>`:''}
-    <div class="footer"><div class="row"><button class="btn" onclick="home()">처음으로</button></div></div>`;
+    <div class="footer"><div class="row"><button class="btn ${quizMode==='review'?'ghost':''}" onclick="home()">처음으로</button>${quizMode==='review'?`<button class="btn" onclick="start(${DECKS.indexOf(curDeck)},'today')">오늘의 풀이</button>`:''}</div></div>`;
   window.scrollTo(0,0);
 }
 
@@ -336,14 +238,10 @@ function renderSettings(){
     <div class="top"><button class="icon-btn" onclick="home()" aria-label="뒤로">←</button><span></span><span style="width:44px"></span></div>
     <h1>설정</h1>
 
-    <h2>하루 문제 수</h2>
+    <h2>오늘의 풀이</h2>
     <div class="panel">
-      <input type="number" id="perDay" min="1" max="70" value="${S.perDay}">
-      <p class="help">어휘, 한자 등 분류마다 이만큼씩 나와요. 바꾸면 다음 날부터 적용돼요.</p>
-      <div style="display:flex;gap:10px;margin-top:12px">
-        <button class="btn small" onclick="savePerDay()">저장</button>
-        <button class="btn small ghost" onclick="rebuildToday()">오늘 문제 다시 뽑기</button>
-      </div>
+      <p class="help" style="margin-top:0">매일 새 문제 10개와 복습 문제를 따로 뽑아요.</p>
+      <button class="btn small ghost" style="margin-top:12px" onclick="rebuildToday()">오늘 문제 다시 뽑기</button>
     </div>
 
     <h2>여러 기기에서 기록 같이 쓰기</h2>
@@ -379,34 +277,32 @@ function renderSettings(){
 function go(i){cur=i;render();}
 function home(){view='home';render();}
 function openSettings(){view='settings';render();}
-function start(i){
+function start(i,mode='today'){
   curDeck=DECKS[i];
+  quizMode=mode;
   const t=TD();
-  if(doneCount(curDeck)>=t.ids.length){view='result';return render();}
-  cur=Math.max(0,t.ids.findIndex(id=>!(t.res[id]&&t.res[id].tries>0)));
+  const ids=sectionIds(t);
+  if(!ids.length){view='home';return render();}
+  if(doneCount(curDeck,mode)>=ids.length){view='result';return render();}
+  cur=Math.max(0,ids.findIndex(id=>!(t.res[id]&&t.res[id].tries>0)));
   view='quiz';render();
 }
 function pick(i){
-  const t=TD(),id=t.ids[cur],q=QB[id];
+  const t=TD(),id=sectionIds(t)[cur],q=QB[id];
   const r=t.res[id]||(t.res[id]={tries:0,everWrong:false,picked:null});
   if(r.picked!=null)return;
   r.picked=i;r.tries++;r.ok=(i===q.answer);r.changedAt=Date.now();
   const st=S.stats[id]||(S.stats[id]={seen:0,wrong:0,last:''});
   if(r.tries===1){st.seen++;st.last=t.date;}
   if(i!==q.answer&&!r.everWrong){r.everWrong=true;st.wrong++;}
-  // 틀린 적이 있으면 (다시 풀어 맞혀도) 다음 출제 대상, 한 번도 안 틀렸으면 대기열에서 제거
-  S.queue=S.queue.filter(x=>x.id!==id);
-  if(r.everWrong)S.queue.push({id,date:t.date});
+  S.queue=QuizCard.afterAnswer(S.queue,id,t.date,i===q.answer,r.everWrong,r.changedAt);
   save();flipJustAnswered=true;render();
 }
-function retry(){const t=TD(),r=t.res[t.ids[cur]];if(r){r.picked=null;save();render();}}
+
+function retry(){const t=TD(),r=t.res[sectionIds(t)[cur]];if(r){r.picked=null;save();render();}}
 function next(){
-  if(cur<TD().ids.length-1){cur++;render();}
+  if(cur<sectionIds(TD()).length-1){cur++;render();}
   else{view='result';render();}
-}
-function savePerDay(){
-  const v=Math.min(70,Math.max(1,parseInt(document.getElementById('perDay').value,10)||10));
-  S.perDay=v;save();alert('저장했어요. 다음 날부터 분류마다 '+v+'문제씩 나와요.');
 }
 function rebuildToday(){
   if(!confirm('오늘 푼 기록이 사라지고 모든 분류의 문제를 새로 뽑아요. 계속할까요?'))return;
@@ -564,7 +460,7 @@ document.addEventListener('visibilitychange',async()=>{
   const rebuilt=ensureToday();
   if(rebuilt||changed){
     const t=TD();
-    if(rebuilt||!t||cur>=t.ids.length)view='home';
+    if(rebuilt||!t||cur>=sectionIds(t).length)view='home';
     render();
   }
 });
